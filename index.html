@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#102740">
+  <title>おはなし字幕｜大きな発言履歴</title>
+  <link rel="stylesheet" href="styles.css"><script defer src="vendor/recognizer.js"></script><script defer src="app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">◉</span><h1>おはなし字幕</h1></div>
+      <div class="top-actions"><button id="toggleButton" class="start-button" type="button" aria-label="認識を開始" title="認識を開始"><span class="control-icon icon-start" aria-hidden="true"></span><span class="button-text">認識を開始</span></button><button id="clearButton" class="danger-button header-clear" type="button" aria-label="履歴を消す" title="保存済みの発言履歴を消す"><span class="control-icon icon-erase" aria-hidden="true"></span><span class="button-text">履歴を消す</span></button><label class="size-control header-size" for="fontSize">文字 <output id="fontOutput" for="fontSize">標準</output><input id="fontSize" type="range" min="0" max="4" step="1" value="2"></label><label class="speaker-choice header-speaker">話者 <select id="nextSpeaker"><option value="A">A 青</option><option value="B">B 橙</option><option value="C">C 紫</option></select></label><span id="sessionStatus" class="status-pill" role="status">● 停止中</span><button id="fullscreenButton" class="subtle-button" type="button">⛶ 全画面</button><button id="settingsButton" class="subtle-button" type="button">⚙ 設定</button></div>
+      <span id="headerMessage" class="header-message" role="alert" hidden></span>
+    </header>
+
+    <main class="conversation" aria-labelledby="historyHeading">
+      <div class="conversation-head"><h2 id="historyHeading">発言 <span id="entryCount" class="count">0件</span></h2></div>
+      <div id="historyStage" class="history-stage" tabindex="0" aria-label="新しい発言が上にある履歴。上下キーでスクロールできます">
+        <div id="liveDraft" class="message-card draft" role="status" aria-live="polite" aria-atomic="true">
+          <div class="message-meta"><span id="draftSpeaker" class="speaker-label">次の発言</span><span id="speechState" class="draft-state">待機中</span></div>
+          <div id="bubbleText" class="message-text">認識を開始すると、話している途中の言葉がここに表示されます。</div>
+          <span class="draft-hint">認識途中の言葉はまだ履歴に保存されません</span>
+        </div>
+        <ol id="historyList" class="history-list" aria-label="確定した発言。新しい順"></ol>
+        <p id="emptyHistory" class="empty-history">確定した言葉がここに残ります。<br>開始して、話してみてください。</p>
+      </div>
+      <button id="jumpButton" class="jump-button" type="button" hidden>↑ 最新の発言へ</button>
+    </main>
+
+    <dialog id="settingsDialog" class="controls" aria-labelledby="settingsTitle">
+      <div class="settings-header"><h2 id="settingsTitle">認識・表示の設定</h2><button id="closeSettings" class="subtle-button" type="button">閉じる</button></div>
+      <div class="control-main"><div class="control-note"><strong id="micStatus">マイク：停止中</strong><span id="message" role="alert">マイクは自動で始まりません。認識方式を確認してください。</span><small id="durationStatus">連続時間 00:00 · 画面保持 停止中</small></div><div class="volume-readout"><span>声の大きさ</span><div class="meter"><span id="volumeBar"></span></div><strong id="volumeStatus">未測定</strong></div></div>
+      <div class="settings-row">
+        <fieldset class="mode-picker"><legend>音声の処理方式</legend><label><input type="radio" name="mode" value="local" checked> 端末内で認識 <span class="privacy-tag">送信なし</span></label><label><input type="radio" name="mode" value="cloud"> Chromeのクラウド認識</label></fieldset>
+        <div class="mode-details"><div id="localControls"><span id="localStatus">端末内認識を確認しています…</span> <button id="installButton" class="inline-button" type="button" hidden>日本語モデルを準備</button></div><label id="cloudConsent" class="cloud-consent" hidden><input id="cloudCheck" type="checkbox"> 音声がChrome/Googleの認識サービスへ送られることを理解しました</label></div>
+      </div>
+      <div class="settings-row second-row">
+        <fieldset class="speaker-mode"><legend>話し手の色分け</legend><label><input type="radio" name="speakerMode" value="manual" checked> 手動</label><label><input type="radio" name="speakerMode" value="auto"> 声の特徴から推定〈実験〉</label></fieldset>
+      </div>
+      <p class="privacy-line">声量と話し手推定はマイク音をこの端末内で分析し、生音声は保存しません。自動推定は誤ることがあります。各発言の話者は後から変更できます。履歴はこのブラウザ内に保存されます。</p>
+      <div class="history-actions"><button id="copyButton" class="subtle-button" type="button">⧉ 履歴をコピー</button><button id="saveButton" class="subtle-button" type="button">⇩ テキスト保存</button></div>
+      <p class="license-line">原作 jimakuChan v2 / Ryota NISHIMURA / MIT License</p>
+    </dialog>
+    <footer>jimakuChan v2 の音声認識エンジンを改変して利用。原作: Ryota NISHIMURA / MIT License。音声認識の誤りは起こり得ます。</footer>
+  </div>
+  <dialog id="clearDialog" aria-labelledby="clearTitle"><h2 id="clearTitle">保存済みの発言履歴を消しますか？</h2><p>このブラウザに保存された、このアプリの発言履歴をすべて消去します。消した履歴は元に戻せません。</p><div class="dialog-actions"><button id="cancelClear" class="subtle-button" type="button">キャンセル</button><button id="confirmClear" class="danger-button solid" type="button">履歴を消去</button></div></dialog>
+</body>
+</html>
