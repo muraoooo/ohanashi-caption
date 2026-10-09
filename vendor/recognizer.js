@@ -326,6 +326,12 @@
         if (this._states[next] === 'stopped') this._startInstance(next);
         this._lastInterim = '';
         if (finalText.trim()) this._emit('final', { text: finalText.trim(), confidence: conf });
+        // Chrome can deliver the next phrase's interim in the same event as a
+        // final. Keep it visible instead of waiting for a later result event.
+        if (interimText.trim()) {
+          this._lastInterim = interimText;
+          this._emit('interim', { text: interimText });
+        }
       } else {
         this._lastInterim = interimText;
         this._emit('interim', { text: interimText });

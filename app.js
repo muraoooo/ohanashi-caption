@@ -22,6 +22,7 @@
   let localAvailability = 'unknown', busy = false, saveTimer = null;
   let autoScrolling = false, scrollReleaseTimer = null, sessionBase = '● 停止中';
   let level = 0, segmentStarted = false, segmentFeatures = [], recentFeatures = [];
+  let timeData = null, frequencyData = null;
   const speakerProfiles = [];
 
   function readHistory() {
@@ -131,13 +132,15 @@
     scrollReleaseTimer = setTimeout(() => { autoScrolling = false; }, 180);
   }
   function setDraft(text, state = 'idle', speaker = null) {
+    const speakerLabel = speaker ? `話者${speaker}` : speakerMode() === 'auto' ? '話者を推定中' : '次の発言';
+    if (el.draftText.textContent === text && el.draft.classList.contains(state) && el.draftSpeaker.textContent === speakerLabel) return;
     const anchor = !followHistory ? el.list.firstElementChild : null;
     const anchorTop = anchor?.getBoundingClientRect().top;
     el.draft.hidden = state !== 'active';
     el.draft.className = `message-card draft ${state}${speaker ? ` speaker-${speaker.toLowerCase()}` : ''}`;
     el.draftText.textContent = text;
     el.draftState.textContent = state === 'active' ? '認識途中' : '待機中';
-    el.draftSpeaker.textContent = speaker ? `話者${speaker}` : speakerMode() === 'auto' ? '話者を推定中' : '次の発言';
+    el.draftSpeaker.textContent = speakerLabel;
     syncLatestEmphasis();
     if (followHistory) requestAnimationFrame(scrollToLatest);
     else preserveOldView(anchor, anchorTop);
@@ -148,15 +151,27 @@
       speaker: options.speaker || currentManualSpeaker(),
       source: options.source === 'auto' ? 'auto' : 'manual', voiceHint: options.voiceHint || '' };
     entries.push(item); queueSave();
-    if (followHistory) renderHistory();
-    else {
-      const anchor = el.list.firstElementChild, anchorTop = anchor?.getBoundingClientRect().top;
-      el.list.prepend(createEntry(item, entries.length - 1)); updateCount();
-      setDraft('次の発言を待っています。', 'idle', null);
-      preserveOldView(anchor, anchorTop); el.jump.hidden = false;
-      return;
+    const anchor = !followHistory ? el.list.firstElementChild : null;
+    const anchorTop = anchor?.getBoundingClientRect().top;
+    el.list.prepend(createEntry(item, entries.length - 1));
+    let older = el.list.lastElementChild?.querySelector('.older-button');
+    const cardCount = el.list.childElementCount - (older ? 1 : 0);
+    if (cardCount > visibleCount) (older ? older.parentElement.previousElementSibling : el.list.lastElementChild)?.remove();
+    const remaining = Math.max(0, entries.length - visibleCount);
+    if (remaining && !older) {
+      const li = document.createElement('li');
+      older = document.createElement('button'); older.className = 'older-button'; older.type = 'button';
+      older.addEventListener('click', () => { visibleCount += 200; renderHistory(true); });
+      li.append(older); el.list.append(li);
     }
+    if (older) {
+      if (remaining) older.textContent = `↓ 古い履歴を表示（残り${remaining}件）`;
+      else older.parentElement.remove();
+    }
+    updateCount();
+    syncLatestEmphasis();
     setDraft('次の発言を待っています。', 'idle', null);
+    if (!followHistory) { preserveOldView(anchor, anchorTop); el.jump.hidden = false; }
   }
   function historyText() { return entries.map(x => `${formatTime(x.at)}  話者${x.speaker}  ${x.text}`).join('\n'); }
   function applyFont() {
@@ -198,7 +213,7 @@
   }
   function audioSample() {
     if (!analyser || !audioContext) return;
-    const data = new Float32Array(analyser.fftSize), spectrum = new Float32Array(analyser.frequencyBinCount);
+    const data = timeData;
     analyser.getFloatTimeDomainData(data);
     let power = 0; for (const sample of data) power += sample * sample;
     const rms = Math.sqrt(power / data.length);
@@ -207,7 +222,10 @@
     level = level * .72 + target * .28;
     el.volumeBar.style.width = `${Math.round(level * 100)}%`;
     el.volumeStatus.textContent = rms > .001 ? '端末内で測定中' : '静か';
-    if (rms < .008) return;
+    // Voice profiling is experimental. Manual speaker mode needs only the
+    // meter, so skip FFT and pitch work on each tablet update.
+    if (rms < .008 || speakerMode() !== 'auto') return;
+    const spectrum = frequencyData;
     analyser.getFloatFrequencyData(spectrum);
     const hzPerBin = audioContext.sampleRate / analyser.fftSize;
     const bands = [0, 0, 0];
@@ -266,10 +284,14 @@
     return { speaker: currentManualSpeaker(), source: 'manual' };
   }
   async function startAudio() {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const supported = navigator.mediaDevices.getSupportedConstraints?.() || {};
+    const audio = supported.autoGainControl ? { autoGainControl: { ideal: true } } : true;
+    stream = await navigator.mediaDevices.getUserMedia({ audio });
     audioContext = new AudioContext();
     const source = audioContext.createMediaStreamSource(stream);
     analyser = audioContext.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = .7;
+    timeData = new Float32Array(analyser.fftSize);
+    frequencyData = new Float32Array(analyser.frequencyBinCount);
     source.connect(analyser);
     await audioContext.resume();
     audioTimer = setInterval(audioSample, 100);
@@ -280,6 +302,7 @@
     clearInterval(audioTimer); audioTimer = null;
     if (stream) stream.getTracks().forEach(track => track.stop()); stream = null;
     if (audioContext) audioContext.close().catch(() => {}); audioContext = null; analyser = null;
+    timeData = null; frequencyData = null;
     level = 0; segmentStarted = false; segmentFeatures = []; recentFeatures = [];
     el.volumeBar.style.width = '0%'; el.volumeStatus.textContent = '未測定';
   }
